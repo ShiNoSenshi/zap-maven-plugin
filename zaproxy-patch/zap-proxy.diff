@@ -24,7 +24,7 @@ Index: src/org/zaproxy/clientapi/core/ClientApi.java
 +			url = new URL("http://zap/json/core/view/alerts");
 +		}
 +		else {
-+			url = new URL("http://zap/json/core/view/alerts");
++			url = new URL("http://zap/xml/core/view/alerts");
 +		}
 +		
 +		if (debug) {
