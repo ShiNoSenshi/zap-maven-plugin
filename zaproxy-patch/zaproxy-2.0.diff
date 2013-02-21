@@ -1,0 +1,41 @@
+Index: org/zaproxy/clientapi/core/ClientApi.java
+===================================================================
+--- org/zaproxy/clientapi/core/ClientApi.java	(revision 2905)
++++ org/zaproxy/clientapi/core/ClientApi.java	(working copy)
+@@ -421,7 +421,36 @@
+         }
+         return sessionUrls;
+     }
++    
++	public String getAllAlerts(boolean json) throws Exception {
++		URL url;
++		String result = "";
+ 
++		if (json) {
++			url = new URL("http://zap/json/core/view/alerts");
++		} else {
++			url = new URL("http://zap/xml/core/view/alerts");
++		}
++
++		if (debug) {
++			System.out.println("Open URL: " + url.toString());
++		}
++		HttpURLConnection uc = (HttpURLConnection) url.openConnection(proxy);
++		uc.connect();
++
++		BufferedReader in = new BufferedReader(new InputStreamReader(
++				uc.getInputStream()));
++		String inputLine;
++
++		while ((inputLine = in.readLine()) != null) {
++			result = result + inputLine;
++		}
++
++		in.close();
++		return result;
++
++	}
++
+     public void activeScanSiteInScope(String url) throws Exception {
+         ascan.scan(url, "true", "true");
+         // Poll until spider finished
