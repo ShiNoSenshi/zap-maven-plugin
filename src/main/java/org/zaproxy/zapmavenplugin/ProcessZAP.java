@@ -12,9 +12,14 @@ package org.zaproxy.zapmavenplugin;
  * BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.InetSocketAddress;
+import java.net.Proxy;
+import java.net.URL;
 import java.util.Calendar;
 import java.util.List;
 import java.util.UUID;
@@ -28,8 +33,7 @@ import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
-import org.zaproxy.clientapi.core.ClientApi;
-import org.zaproxy.clientapi.core.Alert;
+import org.zaproxy.clientapi.core.*;
 
 /**
  * Goal which touches a timestamp file.
@@ -41,6 +45,9 @@ public class ProcessZAP extends AbstractMojo {
     private static final String NONE_FORMAT = "none";
 
     private static final String JSON_FORMAT = "json";
+
+    private ClientApi zapClientAPI;
+    private Proxy proxy;
 
     /**
      * Location of the host of the ZAP proxy
@@ -153,22 +160,109 @@ public class ProcessZAP extends AbstractMojo {
         return sb.toString();
     }
 
+    /**
+     * Change the ZAP API status response to an integer
+     *
+     * @param response the ZAP APIresponse code
+     * @return
+     */
+    private int statusToInt(ApiResponse response) {
+        return Integer.parseInt(((ApiResponseElement)response).getValue());
+    }
+
+    /**
+     * Search for all links and pages on the URL
+     *
+     * @param url the to investigate URL
+     * @throws ClientApiException
+     */
+    private void spiderURL(String url) throws ClientApiException {
+        zapClientAPI.spider.scan(url);
+
+        while ( statusToInt(zapClientAPI.spider.status()) < 100) {
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                getLog().error(e.toString());
+            }
+        }
+    }
+
+    /**
+     * Scan all pages found at url
+     *
+     * @param url the url to scan
+     * @throws ClientApiException
+     */
+    private void scanURL(String url) throws ClientApiException {
+        zapClientAPI.ascan.scan(url, "true", "false");
+
+        while ( statusToInt(zapClientAPI.ascan.status()) < 100) {
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                getLog().error(e.toString());
+            }
+        }
+    }
+
+    /**
+     * Get all alerts from ZAP proxy
+     *
+     * @param json true for json form, false for xml format
+     * @return  all alerts from ZAProxy
+     * @throws Exception
+     */
+    private String getAllAlerts(boolean json) throws Exception {
+        URL url;
+        String result = "";
+
+        if (json) {
+            url = new URL("http://zap/json/core/view/alerts");
+        } else {
+            url = new URL("http://zap/xml/core/view/alerts");
+        }
+
+        getLog().info("Open URL: " + url.toString());
+
+        HttpURLConnection uc = (HttpURLConnection) url.openConnection(proxy);
+        uc.connect();
+
+        BufferedReader in = new BufferedReader(new InputStreamReader(
+                uc.getInputStream()));
+        String inputLine;
+
+        while ((inputLine = in.readLine()) != null) {
+            result = result + inputLine;
+        }
+
+        in.close();
+        return result;
+
+    }
+
+    /**
+     * execute the whole shabang
+     *
+     * @throws MojoExecutionException
+     */
     public void execute() throws MojoExecutionException {
-        ClientApi zapClient = null;
+
         try {
 
-            zapClient = new ClientApi(zapProxyHost, zapProxyPort);
+            zapClientAPI = new ClientApi(zapProxyHost, zapProxyPort);
+            proxy = new Proxy(Proxy.Type.HTTP, new InetSocketAddress(zapProxyHost, zapProxyPort));
 
             if (spiderURL) {
                 getLog().info("Spider the site [" + targetURL + "]");
-                zapClient.spiderUrl(targetURL);
+                spiderURL(targetURL);
             } else {
                 getLog().info("skip spidering the site [" + targetURL + "]");
             }
 
             if (scanURL) {
                 getLog().info("Scan the site [" + targetURL + "]");
-                zapClient.activeScanUrl(targetURL);
+                scanURL(targetURL);
             } else {
                 getLog().info("skip scanning the site [" + targetURL + "]");
             }
@@ -179,7 +273,7 @@ public class ProcessZAP extends AbstractMojo {
 
                 fileName = createTempFilename("ZAP", "");
 
-                zapClient.saveSession(fileName);
+                zapClientAPI.core.saveSession(fileName);
             } else {
                 getLog().info("skip saveSession");
             }
@@ -193,7 +287,7 @@ public class ProcessZAP extends AbstractMojo {
                 String fileName_no_extension = FilenameUtils.concat(reportsDirectory, fileName);
 
                 try {
-                    String alerts = zapClient.getAllAlerts(false);
+                    String alerts = getAllAlerts(true);
                     JSON jsonObj = JSONSerializer.toJSON(alerts);
 
                     writeXml(fileName_no_extension, jsonObj);
@@ -205,21 +299,21 @@ public class ProcessZAP extends AbstractMojo {
                         getLog().info("This format is not supported ["+format+"] ; please choose 'none' or 'json'");
                     }
                 } catch (Exception e) {
-                    System.out.print(e.getMessage());
+                    getLog().error(e.toString());
+                    e.printStackTrace();
                 }
             }
 
         } catch (Exception e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+            getLog().error(e.toString());
             throw new MojoExecutionException("Processing with ZAP failed");
         } finally {
-            if (shutdownZAP && (zapClient != null)) {
+            if (shutdownZAP && (zapClientAPI != null)) {
                 try {
                     getLog().info("Shutdown ZAProxy");
-                    zapClient.stopZap();
+                    zapClientAPI.core.shutdown();
                 } catch (Exception e) {
-                    // TODO Auto-generated catch block
+                    getLog().error(e.toString());
                     e.printStackTrace();
                 }
             } else {
