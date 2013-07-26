@@ -1,6 +1,11 @@
 package org.zaproxy.zapmavenplugin;
 
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.util.Properties;
 
 import org.apache.maven.shared.tools.test.ReflectiveSetter;
 import org.easymock.EasyMock;
@@ -25,7 +30,6 @@ public class StartZAPTest {
 	private static final String ZAP_PROXY_HOST = "ZAP_PROXY_HOST";
 	private static final int ZAP_PROXY_PORT = 8080;
 	private static final int ZAP_SLEEP = 0;
-	private static final String ZAP_PROGRAMM = "/home/senshi/Downloads/ZAP_D-2013-07-22/zap-api-v2-4.jar";
 	
 	final ClientApi clientApi = new ClientApi(ZAP_PROXY_HOST, ZAP_PROXY_PORT);
 	Runtime runtimeMock = EasyMock.createMock(Runtime.class);
@@ -57,12 +61,19 @@ public class StartZAPTest {
 	@Test
 	public void startServer() throws Throwable {
 		prepareStartZap(startZap, NO_NEW_SESSION);
-		EasyMock.expect(runtimeMock.exec(EasyMock.eq(ZAP_PROGRAMM), EasyMock.anyObject(String[].class), EasyMock.anyObject(File.class))).andReturn(null);
+		EasyMock.expect(runtimeMock.exec(EasyMock.eq(zapApiPath()), EasyMock.anyObject(String[].class), EasyMock.anyObject(File.class))).andReturn(null);
 		
 		EasyMock.replay(runtimeMock);
 		startZap.execute();
 		EasyMock.verify(runtimeMock);
 		
+	}
+
+	private String zapApiPath() throws IOException, FileNotFoundException {
+		InputStream is = getClass().getResourceAsStream("/config.properties");
+		Properties p = new Properties();
+		p.load(new InputStreamReader(is));
+		return p.getProperty("zapApiPath");
 	}
 
 	private Core prepareCoreForNewSession() throws ClientApiException {
@@ -78,7 +89,7 @@ public class StartZAPTest {
 		setter.setProperty("zapProxyHost", ZAP_PROXY_HOST, startZap);
 		setter.setProperty("zapProxyPort", ZAP_PROXY_PORT, startZap);
 		setter.setProperty("zapSleep", ZAP_SLEEP, startZap);
-		setter.setProperty("zapProgram", ZAP_PROGRAMM, startZap);
+		setter.setProperty("zapProgram", zapApiPath(), startZap);
 	}
 	
 }
