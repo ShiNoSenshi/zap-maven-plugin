@@ -17,11 +17,13 @@ package org.zaproxy.zapmavenplugin;
  */
 import java.io.File;
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
 
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.zaproxy.clientapi.core.ClientApi;
+import org.zaproxy.clientapi.core.ClientApiException;
 
 
 /**
@@ -71,56 +73,11 @@ public class StartZAP
     {
     	try {
             if (newSession) {
-                ClientApi zapClient = new ClientApi(zapProxyHost, zapProxyPort);
-                File tempFile = File.createTempFile("ZAP", null);
-                getLog().info("Create Session with temporary file [" + tempFile.getPath() + "]");
-                zapClient.core.newSession(tempFile.getPath());
+            	startNewSessionOnRunningClient();
             } else {
-                File pf = new File(zapProgram);
-                Runtime runtime = java.lang.Runtime.getRuntime();
-                getLog().info("Start ZAProxy [" + zapProgram + "]");
-                getLog().info("Using working directory [" + pf.getParentFile().getPath() + "]");
-                final Process ps = runtime.exec(zapProgram, null, pf.getParentFile());
+                final Process ps = startZap();
                 
-                // Consommation de la sortie standard de l'application externe dans un Thread separe
-                new Thread() {
-                    public void run() {
-                        try {
-                            BufferedReader reader = new BufferedReader(new InputStreamReader(ps.getInputStream()));
-                            String line = "";
-                            try {
-                                while((line = reader.readLine()) != null) {
-                                    // Traitement du flux de sortie de l'application si besoin est
-                                    getLog().info(line);
-                                }
-                            } finally {
-                                reader.close();
-                            }
-                        } catch(Exception e) {
-                            e.printStackTrace();
-                        }
-                    }
-                }.start();
-
-                // Consommation de la sortie d'erreur de l'application externe dans un Thread separe
-                new Thread() {
-                    public void run() {
-                        try {
-                            BufferedReader reader = new BufferedReader(new InputStreamReader(ps.getErrorStream()));
-                            String line = "";
-                            try {
-                                while((line = reader.readLine()) != null) {
-                                    // Traitement du flux d'erreur de l'application si besoin est
-                                    getLog().info(line);
-                                }
-                            } finally {
-                                reader.close();
-                            }
-                        } catch(Exception e) {
-                            e.printStackTrace();
-                        }
-                    }
-                }.start();       
+                logZapProcess(ps);
                 
             }
 			Thread.sleep(zapSleep);
@@ -130,4 +87,76 @@ public class StartZAP
         }
 
     }
+
+	protected Runtime getRuntime() {
+		Runtime runtime = java.lang.Runtime.getRuntime();
+		return runtime;
+	}
+
+	protected ClientApi getZapClient() {
+		return new ClientApi(zapProxyHost, zapProxyPort);
+	}
+
+	private void startNewSessionOnRunningClient() throws IOException,
+			ClientApiException {
+		ClientApi zapClient = getZapClient();
+		File tempFile = File.createTempFile("ZAP", null);
+		getLog().info("Create Session with temporary file [" + tempFile.getPath() + "]");
+		zapClient.core.newSession(tempFile.getPath());
+	}
+
+	private Process startZap() throws IOException {
+		File pf = new File(zapProgram);
+		Runtime runtime = getRuntime();
+		getLog().info("Start ZAProxy [" + zapProgram + "]");
+		getLog().info("Using working directory [" + pf.getParentFile().getPath() + "]");
+		final Process ps = runtime.exec(zapProgram, null, pf.getParentFile());
+		return ps;
+	}
+
+	private void logZapProcess(final Process ps) {
+		logNormalOutput(ps);
+
+		logErrorOutput(ps);
+	}
+
+	private void logErrorOutput(final Process ps) {
+		new Thread() {
+		    public void run() {
+		        try {
+		            BufferedReader reader = new BufferedReader(new InputStreamReader(ps.getErrorStream()));
+		            String line = "";
+		            try {
+		                while((line = reader.readLine()) != null) {
+		                    getLog().info(line);
+		                }
+		            } finally {
+		                reader.close();
+		            }
+		        } catch(Exception e) {
+		            e.printStackTrace();
+		        }
+		    }
+		}.start();
+	}
+
+	private void logNormalOutput(final Process ps) {
+		new Thread() {
+		    public void run() {
+		        try {
+		            BufferedReader reader = new BufferedReader(new InputStreamReader(ps.getInputStream()));
+		            String line = "";
+		            try {
+		                while((line = reader.readLine()) != null) {
+		                    getLog().info(line);
+		                }
+		            } finally {
+		                reader.close();
+		            }
+		        } catch(Exception e) {
+		            e.printStackTrace();
+		        }
+		    }
+		}.start();
+	}
 }

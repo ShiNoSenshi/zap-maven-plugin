@@ -1,5 +1,15 @@
 package org.zaproxy.zapmavenplugin;
 
+import java.io.File;
+
+import org.apache.maven.shared.tools.test.ReflectiveSetter;
+import org.easymock.EasyMock;
+import org.junit.Test;
+import org.zaproxy.clientapi.core.ApiResponseElement;
+import org.zaproxy.clientapi.core.ClientApi;
+import org.zaproxy.clientapi.core.ClientApiException;
+import org.zaproxy.clientapi.gen.Core;
+
 /**
  * Test module for the start ZAP module
  *
@@ -9,4 +19,66 @@ package org.zaproxy.zapmavenplugin;
  * To change this template use File | Settings | File Templates.
  */
 public class StartZAPTest {
+	
+	private static final boolean NEW_SESSION = true;
+	private static final boolean NO_NEW_SESSION = false;
+	private static final String ZAP_PROXY_HOST = "ZAP_PROXY_HOST";
+	private static final int ZAP_PROXY_PORT = 8080;
+	private static final int ZAP_SLEEP = 0;
+	private static final String ZAP_PROGRAMM = "/home/senshi/Downloads/ZAP_D-2013-07-22/zap-api-v2-4.jar";
+	
+	final ClientApi clientApi = new ClientApi(ZAP_PROXY_HOST, ZAP_PROXY_PORT);
+	Runtime runtimeMock = EasyMock.createMock(Runtime.class);
+	
+	private StartZAP startZap = new StartZAP() {
+		@Override
+		protected ClientApi getZapClient() {
+			return clientApi;
+		}
+		
+		@Override
+		protected Runtime getRuntime() {
+			return runtimeMock;
+		};
+	};
+	
+	
+	@Test
+	public void startNewSession() throws Throwable {
+		Core coreMock = prepareCoreForNewSession();
+		prepareStartZap(startZap, NEW_SESSION);
+		
+
+		EasyMock.replay(coreMock);
+		startZap.execute();
+		EasyMock.verify(coreMock);
+	}
+
+	@Test
+	public void startServer() throws Throwable {
+		prepareStartZap(startZap, NO_NEW_SESSION);
+		EasyMock.expect(runtimeMock.exec(EasyMock.eq(ZAP_PROGRAMM), EasyMock.anyObject(String[].class), EasyMock.anyObject(File.class))).andReturn(null);
+		
+		EasyMock.replay(runtimeMock);
+		startZap.execute();
+		EasyMock.verify(runtimeMock);
+		
+	}
+
+	private Core prepareCoreForNewSession() throws ClientApiException {
+		Core coreMock = EasyMock.createMock(Core.class);
+		EasyMock.expect(coreMock.newSession(EasyMock.anyString())).andReturn(ApiResponseElement.OK);
+		clientApi.core = coreMock;
+		return coreMock;
+	}
+
+	private void prepareStartZap(StartZAP startZap, boolean newSession) throws Throwable {
+		ReflectiveSetter setter = new ReflectiveSetter(StartZAP.class);
+		setter.setProperty("newSession", newSession, startZap);
+		setter.setProperty("zapProxyHost", ZAP_PROXY_HOST, startZap);
+		setter.setProperty("zapProxyPort", ZAP_PROXY_PORT, startZap);
+		setter.setProperty("zapSleep", ZAP_SLEEP, startZap);
+		setter.setProperty("zapProgram", ZAP_PROGRAMM, startZap);
+	}
+	
 }
