@@ -249,7 +249,7 @@ public class ProcessZAP extends AbstractMojo {
 
         try {
 
-            zapClientAPI = new ClientApi(zapProxyHost, zapProxyPort);
+            zapClientAPI = getZapClient();
             proxy = new Proxy(Proxy.Type.HTTP, new InetSocketAddress(zapProxyHost, zapProxyPort));
 
             if (spiderURL) {
@@ -305,7 +305,7 @@ public class ProcessZAP extends AbstractMojo {
 
         } catch (Exception e) {
             getLog().error(e.toString());
-            throw new MojoExecutionException("Processing with ZAP failed");
+            throw new MojoExecutionException("Processing with ZAP failed", e);
         } finally {
             if (shutdownZAP && (zapClientAPI != null)) {
                 try {
@@ -320,6 +320,10 @@ public class ProcessZAP extends AbstractMojo {
             }
         }
     }
+
+	protected ClientApi getZapClient() {
+		return new ClientApi(zapProxyHost, zapProxyPort);
+	}
 
     private void writeXml(String filename, JSON json) throws IOException {
         String fullFileName = filename + ".xml";
