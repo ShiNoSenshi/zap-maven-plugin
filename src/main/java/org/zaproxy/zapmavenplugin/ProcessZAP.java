@@ -21,7 +21,6 @@ import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.net.URL;
 import java.util.Calendar;
-import java.util.List;
 import java.util.UUID;
 import java.text.SimpleDateFormat;
 
@@ -320,22 +319,6 @@ public class ProcessZAP extends AbstractMojo {
                 getLog().info("No shutdown of ZAP");
             }
         }
-    }
-
-    /**
-     * Converts the given JSON string into XML.
-     * 
-     * @param json
-     *            the JSON string to be converted
-     * @return XML representing the given JSON string
-     */
-    private String convert2XML(String json) {
-        // convert to XML
-        XMLSerializer serializer = new XMLSerializer();
-        serializer.setArrayName("zap-report");
-        serializer.setElementName("alerts");
-        JSON jsonObj = JSONSerializer.toJSON(json);
-        return serializer.write(jsonObj);
     }
 
     private void writeXml(String filename, JSON json) throws IOException {

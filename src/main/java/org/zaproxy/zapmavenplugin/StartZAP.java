@@ -74,7 +74,7 @@ public class StartZAP
                 ClientApi zapClient = new ClientApi(zapProxyHost, zapProxyPort);
                 File tempFile = File.createTempFile("ZAP", null);
                 getLog().info("Create Session with temporary file [" + tempFile.getPath() + "]");
-                zapClient.newSession(tempFile.getPath());
+                zapClient.core.newSession(tempFile.getPath());
             } else {
                 File pf = new File(zapProgram);
                 Runtime runtime = java.lang.Runtime.getRuntime();
@@ -123,7 +123,7 @@ public class StartZAP
                 }.start();       
                 
             }
-            Thread.currentThread().sleep(zapSleep);
+			Thread.sleep(zapSleep);
         } catch(Exception e) {
                 e.printStackTrace();
                 throw new MojoExecutionException("Unable to start ZAP [" + zapProgram + "]");
