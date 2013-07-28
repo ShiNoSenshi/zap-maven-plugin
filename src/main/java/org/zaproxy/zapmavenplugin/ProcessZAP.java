@@ -2,18 +2,17 @@ package org.zaproxy.zapmavenplugin;
 
 /*
  * Copyright 2001-2005 The Apache Software Foundation.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  * http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS"
  * BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -41,7 +40,7 @@ import org.zaproxy.clientapi.core.ClientApiException;
 
 /**
  * Goal which touches a timestamp file.
- * 
+ *
  * @goal process-zap
  * @phase post-integration-test
  */
@@ -55,7 +54,7 @@ public class ProcessZAP extends AbstractMojo {
 
     /**
      * Location of the host of the ZAP proxy
-     * 
+     *
      * @parameter expression="${zapProxyHost}" default-value="localhost"
      * @required
      */
@@ -63,7 +62,7 @@ public class ProcessZAP extends AbstractMojo {
 
     /**
      * Location of the port of the ZAP proxy
-     * 
+     *
      * @parameter default-value="8080"
      * @required
      */
@@ -71,7 +70,7 @@ public class ProcessZAP extends AbstractMojo {
 
     /**
      * Location of the port of the ZAP proxy
-     * 
+     *
      * @parameter
      * @required
      */
@@ -79,56 +78,56 @@ public class ProcessZAP extends AbstractMojo {
 
     /**
      * Switch to spider the URL
-     * 
+     *
      * @parameter default-value="true"
      */
     private boolean spiderURL;
 
     /**
      * Switch to scan the URL
-     * 
+     *
      * @parameter default-value="true"
      */
     private boolean scanURL;
 
     /**
      * Save session of scan
-     * 
+     *
      * @parameter default-value="true"
      */
     private boolean saveSession;
 
     /**
      * Switch to shutdown ZAP
-     * 
+     *
      * @parameter default-value="true"
      */
     private boolean shutdownZAP;
 
     /**
      * Save session of scan
-     * 
+     *
      * @parameter expression="${reportAlerts}" default-value="true"
      */
     private boolean reportAlerts;
 
     /**
      * Location to store the ZAP reports
-     * 
+     *
      * @parameter default-value="${project.build.directory}/zap-reports"
      */
     private String reportsDirectory;
 
     /**
      * Set the output format type, in addition to the XML report. Must be one of "none" or "json".
-     * 
+     *
      * @parameter default-value="none"
      */
     private String format;
 
     /**
      * create a Timestamp
-     * 
+     *
      * @return
      */
     private String dateTimeString() {
@@ -139,7 +138,7 @@ public class ProcessZAP extends AbstractMojo {
 
     /**
      * create a temporary filename
-     * 
+     *
      * @param prefix
      *            if null, then default "temp"
      * @param suffix
@@ -153,7 +152,7 @@ public class ProcessZAP extends AbstractMojo {
         else
             sb.append("temp");
 
-        // append date time and random UUID 
+        // append date time and random UUID
         sb.append(dateTimeString()).append("_").append(UUID.randomUUID().toString());
 
         if (suffix != null)
@@ -244,14 +243,14 @@ public class ProcessZAP extends AbstractMojo {
         return result;
 
     }
-    
+
     /**
      * Copies the html report from zap into the report directory
      * @param filename the filename without extention where the report should be placed
      * @throws Exception
      */
     private void writeHtmlReport(String filename) throws Exception {
-    	String fullFileName = filename + ".html";
+        String fullFileName = filename + ".html";
         URL url = new URL("http://zap/html/core/view/alerts");
 
         getLog().info("Open URL: " + url.toString());
@@ -261,15 +260,19 @@ public class ProcessZAP extends AbstractMojo {
 
         BufferedReader in = new BufferedReader(new InputStreamReader(
                 uc.getInputStream()));
-        FileWriter fstream = new FileWriter(fullFileName);        
-        BufferedWriter out = new BufferedWriter(fstream);
+        FileWriter fstream = new FileWriter(fullFileName);
 
-        while (in.readLine() != null) {
-        	out.write(in.read());
+        String line;
+        String content = "";
+
+        while ((line = in.readLine()) != null) {
+            content += line;
+            getLog().debug(line);
         }
+        fstream.write(content);
 
+        fstream.close();
         in.close();
-        out.close();
     }
 
     /**
@@ -354,9 +357,9 @@ public class ProcessZAP extends AbstractMojo {
         }
     }
 
-	protected ClientApi getZapClient() {
-		return new ClientApi(zapProxyHost, zapProxyPort);
-	}
+    protected ClientApi getZapClient() {
+        return new ClientApi(zapProxyHost, zapProxyPort);
+    }
 
     private void writeXml(String filename, JSON json) throws IOException {
         String fullFileName = filename + ".xml";
@@ -366,7 +369,7 @@ public class ProcessZAP extends AbstractMojo {
         String xml = serializer.write(json);
         FileUtils.writeStringToFile(new File(fullFileName), xml);
     }
-    
+
     private void writeJson(String filename, JSON json) throws IOException {
         String fullFileName = filename + ".json";
         FileUtils.writeStringToFile(new File(fullFileName), json.toString());
