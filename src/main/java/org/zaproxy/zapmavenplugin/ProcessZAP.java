@@ -13,26 +13,31 @@ package org.zaproxy.zapmavenplugin;
  * governing permissions and limitations under the License.
  */
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.net.URL;
+import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.UUID;
-import java.text.SimpleDateFormat;
 
 import net.sf.json.JSON;
 import net.sf.json.JSONSerializer;
 import net.sf.json.xml.XMLSerializer;
 
-import org.apache.maven.plugin.AbstractMojo;
-import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
-import org.zaproxy.clientapi.core.*;
+import org.apache.maven.plugin.AbstractMojo;
+import org.apache.maven.plugin.MojoExecutionException;
+import org.zaproxy.clientapi.core.ApiResponse;
+import org.zaproxy.clientapi.core.ApiResponseElement;
+import org.zaproxy.clientapi.core.ClientApi;
+import org.zaproxy.clientapi.core.ClientApiException;
 
 /**
  * Goal which touches a timestamp file.
@@ -239,6 +244,33 @@ public class ProcessZAP extends AbstractMojo {
         return result;
 
     }
+    
+    /**
+     * Copies the html report from zap into the report directory
+     * @param filename the filename without extention where the report should be placed
+     * @throws Exception
+     */
+    private void writeHtmlReport(String filename) throws Exception {
+    	String fullFileName = filename + ".html";
+        URL url = new URL("http://zap/html/core/view/alerts");
+
+        getLog().info("Open URL: " + url.toString());
+
+        HttpURLConnection uc = (HttpURLConnection) url.openConnection(proxy);
+        uc.connect();
+
+        BufferedReader in = new BufferedReader(new InputStreamReader(
+                uc.getInputStream()));
+        FileWriter fstream = new FileWriter(fullFileName);        
+        BufferedWriter out = new BufferedWriter(fstream);
+
+        while (in.readLine() != null) {
+        	out.write(in.read());
+        }
+
+        in.close();
+        out.close();
+    }
 
     /**
      * execute the whole shabang
@@ -290,6 +322,7 @@ public class ProcessZAP extends AbstractMojo {
                     JSON jsonObj = JSONSerializer.toJSON(alerts);
 
                     writeXml(fileName_no_extension, jsonObj);
+                    writeHtmlReport(fileName_no_extension);
                     if (JSON_FORMAT.equals(format)) {
                         writeJson(fileName_no_extension, jsonObj);
                     } else if (NONE_FORMAT.equals(format)) {
@@ -333,7 +366,7 @@ public class ProcessZAP extends AbstractMojo {
         String xml = serializer.write(json);
         FileUtils.writeStringToFile(new File(fullFileName), xml);
     }
-
+    
     private void writeJson(String filename, JSON json) throws IOException {
         String fullFileName = filename + ".json";
         FileUtils.writeStringToFile(new File(fullFileName), json.toString());
