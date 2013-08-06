@@ -126,6 +126,13 @@ public class ProcessZAP extends AbstractMojo {
     private String format;
 
     /**
+     * Set the plugin to skip its execution.
+     *
+     * @parameter default-value="false"
+     */
+    private boolean skip;
+
+    /**
      * create a Timestamp
      *
      * @return
@@ -281,7 +288,10 @@ public class ProcessZAP extends AbstractMojo {
      * @throws MojoExecutionException
      */
     public void execute() throws MojoExecutionException {
-
+        if (skip) {
+            getLog().info("Skipping zap exection");
+            return;
+        }
         try {
 
             zapClientAPI = getZapClient();
